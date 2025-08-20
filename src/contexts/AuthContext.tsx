@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type UserRole = 'admin' | 'agent';
-export type PlotStatus = 'in-sale' | 'booked' | 'sold' | 'reserved' | 'blocked';
+export type PlotStatus = 'in-sale' | 'booked' | 'sold' | 'reserved';
 
 export interface User {
     id: string;
@@ -23,7 +23,6 @@ export interface Venture {
     description: string;
     plots: Plot[];
     totalPlots: number;
-    isBlocked?: boolean; // Track if entire venture is blocked
 }
 
 interface AuthContextType {
@@ -32,8 +31,6 @@ interface AuthContextType {
     login: (username: string, password: string) => boolean;
     logout: () => void;
     updatePlotStatus: (ventureId: string, plotId: string, status: PlotStatus) => void;
-    blockAllPlotsInVenture: (ventureId: string) => void; // New function
-    unblockAllPlotsInVenture: (ventureId: string) => void; // New function
     addVenture: (venture: Omit<Venture, 'id'>) => void;
     deleteVenture: (ventureId: string) => void;
 }
@@ -72,7 +69,6 @@ const initialVentures: Venture[] = [
         description: 'Premium residential plots with modern amenities',
         plots: generatePlots(120),
         totalPlots: 120,
-        isBlocked: false,
     },
     {
         id: '2',
@@ -80,7 +76,6 @@ const initialVentures: Venture[] = [
         description: 'Luxury plots with scenic mountain views',
         plots: generatePlots(80),
         totalPlots: 80,
-        isBlocked: false,
     },
     {
         id: '3',
@@ -88,7 +83,6 @@ const initialVentures: Venture[] = [
         description: 'Eco-friendly residential community',
         plots: generatePlots(200),
         totalPlots: 200,
-        isBlocked: false,
     },
 ];
 
@@ -117,12 +111,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const updatePlotStatus = (ventureId: string, plotId: string, status: PlotStatus) => {
-        // Only allow admin to perform certain actions
-        if (user?.role !== 'admin' && status === 'blocked') {
-            console.warn('Only admin can block plots');
-            return;
-        }
-
         setVentures(prev => prev.map(venture =>
             venture.id === ventureId
                 ? {
@@ -135,53 +123,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ));
     };
 
-    const blockAllPlotsInVenture = (ventureId: string) => {
-        // Only admin can block all plots
-        if (user?.role !== 'admin') {
-            console.warn('Only admin can block all plots in a venture');
-            return;
-        }
-
-        setVentures(prev => prev.map(venture =>
-            venture.id === ventureId
-                ? {
-                    ...venture,
-                    isBlocked: true,
-                    plots: venture.plots.map(plot => ({
-                        ...plot,
-                        status: 'blocked' as PlotStatus
-                    }))
-                }
-                : venture
-        ));
-    };
-
-    const unblockAllPlotsInVenture = (ventureId: string) => {
-        // Only admin can unblock all plots
-        if (user?.role !== 'admin') {
-            console.warn('Only admin can unblock all plots in a venture');
-            return;
-        }
-
-        setVentures(prev => prev.map(venture =>
-            venture.id === ventureId
-                ? {
-                    ...venture,
-                    isBlocked: false,
-                    plots: venture.plots.map(plot => ({
-                        ...plot,
-                        status: plot.status === 'blocked' ? 'in-sale' : plot.status
-                    }))
-                }
-                : venture
-        ));
-    };
-
     const addVenture = (ventureData: Omit<Venture, 'id'>) => {
         const newVenture: Venture = {
             ...ventureData,
             id: Date.now().toString(),
-            isBlocked: false,
         };
         setVentures(prev => [...prev, newVenture]);
     };
@@ -197,8 +142,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             login,
             logout,
             updatePlotStatus,
-            blockAllPlotsInVenture,
-            unblockAllPlotsInVenture,
             addVenture,
             deleteVenture,
         }}>
